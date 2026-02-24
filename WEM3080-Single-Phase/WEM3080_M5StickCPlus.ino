@@ -8,6 +8,7 @@
  * - Web dashboard with auto-refresh (dark theme)
  * - JSON API endpoint for automation
  * - API key protection via query parameter
+ * - OTA wireless firmware update
  * - Button press toggles display page
  *
  * Wiring (M5StickC Plus RS485 HAT):
@@ -23,6 +24,7 @@
 #include <M5StickCPlus.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <ArduinoOTA.h>
 
 // ============== WIFI CONFIG ==============
 #define WIFI_SSID     "SIRIUS"
@@ -651,6 +653,55 @@ void connectWiFi() {
   }
 }
 
+// ============== OTA SETUP ==============
+void setupOTA() {
+  ArduinoOTA.setHostname("WEM3080-Monitor");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println(F("OTA Start"));
+    M5.Lcd.fillScreen(BLACK);
+    M5.Lcd.setRotation(3);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setTextColor(TFT_YELLOW);
+    M5.Lcd.setCursor(20, 30);
+    M5.Lcd.print("OTA Update...");
+  });
+
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    int pct = progress * 100 / total;
+    Serial.printf("OTA: %u%%\r", pct);
+    M5.Lcd.fillRect(20, 60, 200, 20, BLACK);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setTextColor(TFT_CYAN);
+    M5.Lcd.setCursor(20, 60);
+    M5.Lcd.printf("%d%%", pct);
+    // Progress bar
+    M5.Lcd.fillRect(20, 90, 200, 10, 0x1082);
+    M5.Lcd.fillRect(20, 90, pct * 2, 10, TFT_GREEN);
+  });
+
+  ArduinoOTA.onEnd([]() {
+    Serial.println(F("\nOTA Done"));
+    M5.Lcd.fillScreen(BLACK);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setTextColor(TFT_GREEN);
+    M5.Lcd.setCursor(20, 50);
+    M5.Lcd.print("OTA Complete!");
+  });
+
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA Error[%u]\n", error);
+    M5.Lcd.fillScreen(BLACK);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setTextColor(TFT_RED);
+    M5.Lcd.setCursor(20, 50);
+    M5.Lcd.print("OTA Failed!");
+  });
+
+  ArduinoOTA.begin();
+  Serial.println(F("OTA ready (WEM3080-Monitor)"));
+}
+
 // ============== SETUP ==============
 void setup() {
   M5.begin();
@@ -680,8 +731,9 @@ void setup() {
   // Connect WiFi
   connectWiFi();
 
-  // Start web server
+  // Start web server and OTA
   if (wifiConnected) {
+    setupOTA();
     server.on("/", handleDashboard);
     server.on("/json", handleJson);
     server.begin();
@@ -718,8 +770,9 @@ void loop() {
     updateDisplay();
   }
 
-  // Handle web clients
+  // Handle web clients and OTA
   if (wifiConnected) {
+    ArduinoOTA.handle();
     server.handleClient();
   }
 
