@@ -402,96 +402,163 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>WEM3080 Monitor</title>
+  <title>WEM3080 Energy Monitor</title>
   <style>
-    body{font-family:'Segoe UI',Arial,sans-serif;background:#0f0f1a;color:#eee;margin:0;padding:10px}
-    .container{max-width:520px;margin:0 auto}
-    h1{text-align:center;font-size:1.5em;margin:10px 0;background:linear-gradient(90deg,#ff6b6b,#ffd93d,#6bcb77,#4d96ff,#9b59b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
-    .card{border-radius:12px;padding:14px;text-align:center;position:relative;overflow:hidden}
-    .card .label{font-size:0.75em;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;opacity:0.85}
-    .card .value{font-size:2em;font-weight:bold;text-shadow:0 0 15px currentColor}
-    .card .unit{font-size:0.75em;opacity:0.7;margin-top:2px}
-    .c-volt{background:#1a1025;border:1px solid #e74c3c;color:#ff6b6b}
-    .c-volt .value{color:#ff6b6b}
-    .c-curr{background:#1a1a05;border:1px solid #f39c12;color:#ffd93d}
-    .c-curr .value{color:#ffd93d}
-    .c-power{background:#0a1a10;border:1px solid #27ae60;color:#6bcb77}
-    .c-power .value{color:#6bcb77}
-    .c-energy{background:#0a1525;border:1px solid #2980b9;color:#4d96ff}
-    .c-energy .value{color:#4d96ff}
-    .c-freq{background:#1a0a25;border:1px solid #8e44ad;color:#c084fc}
-    .c-freq .value{color:#c084fc}
-    .c-pf{background:#1a1510;border:1px solid #e67e22;color:#fb923c}
-    .c-pf .value{color:#fb923c}
-    .c-rev{background:#0a1a1a;border:1px solid #16a085;color:#2dd4bf}
-    .c-rev .value{color:#2dd4bf}
-    .c-dir{background:#1a0a15;border:1px solid #c0392b;color:#f87171}
-    .c-dir .value{color:#f87171}
-    .status{background:#161625;padding:8px;border-radius:8px;margin:8px 0;font-size:0.75em;text-align:center;border:1px solid #2a2a40}
-    .ok{color:#6bcb77} .err{color:#ff6b6b}
-    a{color:#4d96ff;text-decoration:none}
-    .btn{display:inline-block;padding:8px 16px;background:#1e1e35;color:#4d96ff;border-radius:6px;margin:4px;border:1px solid #333}
-    .btn:hover{background:#2a2a45;border-color:#4d96ff}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a14;color:#e0e0e0;min-height:100vh}
+    .header{background:linear-gradient(135deg,#0d1b2a,#1b2838);padding:14px;text-align:center;border-bottom:2px solid #1a3a5c}
+    .header h1{font-size:1.4em;background:linear-gradient(90deg,#ff6b6b,#ffd93d,#6bcb77,#4d96ff,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .header .sub{font-size:0.7em;color:#667;margin-top:4px}
+    .pulse{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+    .pulse.on{background:#6bcb77;box-shadow:0 0 8px #6bcb77;animation:blink 2s infinite}
+    .pulse.off{background:#ff6b6b;box-shadow:0 0 8px #ff6b6b}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+    .container{max-width:600px;margin:0 auto;padding:12px}
+    .power-gauge{background:#0d1525;border-radius:16px;padding:20px;margin:12px 0;text-align:center;border:1px solid #1a3050;position:relative;overflow:hidden}
+    .power-gauge .pw-label{font-size:0.8em;color:#8899aa;text-transform:uppercase;letter-spacing:2px}
+    .power-gauge .pw-value{font-size:3.5em;font-weight:bold;color:#6bcb77;text-shadow:0 0 30px rgba(107,203,119,0.4);margin:8px 0;transition:color 0.3s}
+    .power-gauge .pw-unit{font-size:0.9em;color:#6bcb77;opacity:0.7}
+    .power-gauge .pw-bar{height:6px;background:#111;border-radius:3px;margin:12px 0 4px;overflow:hidden}
+    .power-gauge .pw-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#27ae60,#6bcb77,#ffd93d,#ff6b6b);transition:width 0.5s ease;width:0%}
+    .power-gauge .pw-range{display:flex;justify-content:space-between;font-size:0.65em;color:#556}
+    .power-gauge .pw-dir{font-size:0.75em;margin-top:4px}
+    .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
+    .card{border-radius:12px;padding:12px;text-align:center;transition:transform 0.2s,box-shadow 0.2s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,0.4)}
+    .card .label{font-size:0.65em;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;opacity:0.8}
+    .card .value{font-size:1.8em;font-weight:bold;transition:all 0.3s}
+    .card .unit{font-size:0.7em;opacity:0.6;margin-top:2px}
+    .card .minmax{font-size:0.55em;opacity:0.5;margin-top:4px}
+    .c-volt{background:linear-gradient(135deg,#1a1025,#1f1030);border:1px solid #e74c3c40;color:#ff6b6b}
+    .c-curr{background:linear-gradient(135deg,#1a1a05,#201f08);border:1px solid #f39c1240;color:#ffd93d}
+    .c-pf{background:linear-gradient(135deg,#1a1510,#201a12);border:1px solid #e67e2240;color:#fb923c}
+    .c-energy{background:linear-gradient(135deg,#0a1525,#0e1a30);border:1px solid #2980b940;color:#4d96ff}
+    .c-rev{background:linear-gradient(135deg,#0a1a1a,#0e2020);border:1px solid #16a08540;color:#2dd4bf}
+    .c-freq{background:linear-gradient(135deg,#1a0a25,#200e30);border:1px solid #8e44ad40;color:#c084fc}
+    .full{grid-column:1/-1}
+    .energy-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+    .status-bar{background:#0d1220;border-radius:10px;padding:10px 14px;margin:10px 0;border:1px solid #1a2a40;font-size:0.72em}
+    .status-bar .row{display:flex;justify-content:space-between;align-items:center;padding:3px 0}
+    .status-bar .lbl{color:#667}
+    .status-bar .val{color:#aab}
+    .ok{color:#6bcb77} .warn{color:#ffd93d} .err{color:#ff6b6b}
+    .btn-row{text-align:center;margin:10px 0}
+    .btn{display:inline-block;padding:8px 20px;background:#111828;color:#4d96ff;border-radius:8px;margin:4px;border:1px solid #1a3050;text-decoration:none;font-size:0.8em;transition:all 0.2s}
+    .btn:hover{background:#1a2840;border-color:#4d96ff;box-shadow:0 0 10px rgba(77,150,255,0.2)}
+    .update-time{text-align:center;font-size:0.65em;color:#445;margin-top:8px}
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="header">
     <h1>WEM3080 Energy Monitor</h1>
-    <div class="status">
-      WiFi: <span class="%WCLASS%">%WSTATUS%</span> |
-      Meter: <span class="%MCLASS%">%MSTATUS%</span> |
-      Reads: %READS% | Errors: %ERRORS%
+    <div class="sub"><span class="pulse on" id="pulse"></span>IAMMETER Single-Phase | Modbus RTU</div>
+  </div>
+  <div class="container">
+    <div class="power-gauge">
+      <div class="pw-label">Active Power</div>
+      <div class="pw-value" id="pw">--</div>
+      <div class="pw-unit">Watts</div>
+      <div class="pw-bar"><div class="pw-fill" id="pwbar"></div></div>
+      <div class="pw-range"><span>0W</span><span>1kW</span><span>2kW</span><span>3kW</span></div>
+      <div class="pw-dir" id="pwdir" style="color:#6bcb77">FORWARD</div>
     </div>
     <div class="grid">
       <div class="card c-volt">
         <div class="label">Voltage</div>
-        <div class="value">%VOLT%</div>
+        <div class="value" id="volt">--</div>
         <div class="unit">V</div>
+        <div class="minmax" id="volt-mm"></div>
       </div>
       <div class="card c-curr">
         <div class="label">Current</div>
-        <div class="value">%CURR%</div>
+        <div class="value" id="curr">--</div>
         <div class="unit">A</div>
-      </div>
-      <div class="card c-power">
-        <div class="label">Power</div>
-        <div class="value">%POWER%</div>
-        <div class="unit">W</div>
-      </div>
-      <div class="card c-energy">
-        <div class="label">Fwd Energy</div>
-        <div class="value">%FWDE%</div>
-        <div class="unit">kWh</div>
-      </div>
-      <div class="card c-freq">
-        <div class="label">Frequency</div>
-        <div class="value">%FREQ%</div>
-        <div class="unit">Hz</div>
+        <div class="minmax" id="curr-mm"></div>
       </div>
       <div class="card c-pf">
         <div class="label">Power Factor</div>
-        <div class="value">%PF%</div>
+        <div class="value" id="pf">--</div>
         <div class="unit"></div>
       </div>
-      <div class="card c-rev">
-        <div class="label">Rev Energy</div>
-        <div class="value">%REVE%</div>
+    </div>
+    <div class="energy-row">
+      <div class="card c-energy">
+        <div class="label">Forward Energy</div>
+        <div class="value" id="fwde">--</div>
         <div class="unit">kWh</div>
       </div>
-      <div class="card c-dir">
-        <div class="label">Direction</div>
-        <div class="value">%DIR%</div>
-        <div class="unit"></div>
+      <div class="card c-rev">
+        <div class="label">Reverse Energy</div>
+        <div class="value" id="reve">--</div>
+        <div class="unit">kWh</div>
       </div>
     </div>
-    <div class="status">
-      Heap: %HEAP% bytes | IP: %IPADDR% | RSSI: %RSSI% dBm<br>
-      <a class="btn" href="/?key=%KEY%">Refresh</a>
-      <a class="btn" href="/json?key=%KEY%">JSON</a>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card c-freq full">
+        <div class="label">Frequency</div>
+        <div class="value" id="freq">--</div>
+        <div class="unit">Hz</div>
+      </div>
     </div>
+    <div class="status-bar">
+      <div class="row"><span class="lbl">WiFi Signal</span><span class="val" id="rssi">--</span></div>
+      <div class="row"><span class="lbl">Meter Status</span><span class="val" id="mstat">--</span></div>
+      <div class="row"><span class="lbl">Reads / Errors</span><span class="val"><span id="reads">0</span> / <span id="errs">0</span></span></div>
+      <div class="row"><span class="lbl">Free Heap</span><span class="val" id="heap">--</span></div>
+      <div class="row"><span class="lbl">IP Address</span><span class="val" id="ip">--</span></div>
+    </div>
+    <div class="btn-row">
+      <a class="btn" href="/json?key=%KEY%">JSON API</a>
+    </div>
+    <div class="update-time">Last update: <span id="lastup">--</span></div>
   </div>
-  <script>setTimeout(function(){location.reload();},5000);</script>
+<script>
+var K='%KEY%',vMin=999,vMax=0,iMax=0;
+function u(){
+  fetch('/json?key='+K).then(r=>r.json()).then(d=>{
+    document.getElementById('pulse').className='pulse '+(d.valid?'on':'off');
+    if(d.valid){
+      document.getElementById('volt').textContent=d.voltage.toFixed(1);
+      document.getElementById('curr').textContent=d.current.toFixed(2);
+      document.getElementById('pf').textContent=d.power_factor.toFixed(3);
+      document.getElementById('fwde').textContent=d.fwd_energy.toFixed(3);
+      document.getElementById('reve').textContent=d.rev_energy.toFixed(3);
+      document.getElementById('freq').textContent=d.frequency.toFixed(1);
+      var p=Math.abs(d.power);
+      document.getElementById('pw').textContent=p.toFixed(0);
+      var pct=Math.min(p/3000*100,100);
+      document.getElementById('pwbar').style.width=pct+'%';
+      var pg=document.querySelector('.pw-value');
+      if(p>2000)pg.style.color='#ff6b6b';
+      else if(p>1000)pg.style.color='#ffd93d';
+      else pg.style.color='#6bcb77';
+      var dir=d.direction==='reverse';
+      document.getElementById('pwdir').textContent=dir?'REVERSE':'FORWARD';
+      document.getElementById('pwdir').style.color=dir?'#ff6b6b':'#6bcb77';
+      if(d.voltage>0){
+        if(d.voltage<vMin)vMin=d.voltage;
+        if(d.voltage>vMax)vMax=d.voltage;
+        document.getElementById('volt-mm').textContent='Min:'+vMin.toFixed(1)+' Max:'+vMax.toFixed(1);
+      }
+      if(d.current>iMax)iMax=d.current;
+      document.getElementById('curr-mm').textContent='Max: '+iMax.toFixed(2)+'A';
+      document.getElementById('mstat').innerHTML='<span class="ok">Online</span>';
+    }else{
+      document.getElementById('mstat').innerHTML='<span class="err">No Data</span>';
+    }
+    document.getElementById('rssi').textContent=d.rssi+' dBm';
+    document.getElementById('reads').textContent=d.reads;
+    document.getElementById('errs').textContent=d.errors;
+    document.getElementById('heap').textContent=d.heap+' bytes';
+    document.getElementById('ip').textContent=location.hostname;
+    document.getElementById('lastup').textContent=new Date().toLocaleTimeString();
+  }).catch(e=>{
+    document.getElementById('pulse').className='pulse off';
+    document.getElementById('mstat').innerHTML='<span class="err">Offline</span>';
+  });
+}
+u();setInterval(u,3000);
+</script>
 </body>
 </html>
 )rawliteral";
@@ -503,36 +570,6 @@ void handleDashboard() {
   if (!checkApiKey()) return;
 
   String html = FPSTR(DASHBOARD_HTML);
-  html.replace("%WCLASS%", wifiConnected ? "ok" : "err");
-  html.replace("%WSTATUS%", wifiConnected ? "Connected" : "Disconnected");
-  html.replace("%MCLASS%", mValid ? "ok" : "err");
-  html.replace("%MSTATUS%", mValid ? "OK" : "No Data");
-  html.replace("%READS%", String(mReadCount));
-  html.replace("%ERRORS%", String(mErrorCount));
-
-  if (mValid) {
-    html.replace("%VOLT%", String(mVoltage, 1));
-    html.replace("%CURR%", String(mCurrent, 2));
-    html.replace("%POWER%", String(mPower, 0));
-    html.replace("%FWDE%", String(mFwdEnergy, 3));
-    html.replace("%REVE%", String(mRevEnergy, 3));
-    html.replace("%FREQ%", String(mFrequency, 1));
-    html.replace("%PF%", String(mPowerFactor, 3));
-    html.replace("%DIR%", mPowerReverse ? "REVERSE" : "FORWARD");
-  } else {
-    html.replace("%VOLT%", "--");
-    html.replace("%CURR%", "--");
-    html.replace("%POWER%", "--");
-    html.replace("%FWDE%", "--");
-    html.replace("%REVE%", "--");
-    html.replace("%FREQ%", "--");
-    html.replace("%PF%", "--");
-    html.replace("%DIR%", "--");
-  }
-
-  html.replace("%HEAP%", String(ESP.getFreeHeap()));
-  html.replace("%IPADDR%", WiFi.localIP().toString());
-  html.replace("%RSSI%", String(WiFi.RSSI()));
   html.replace("%KEY%", API_KEY);
 
   server.send(200, "text/html", html);
